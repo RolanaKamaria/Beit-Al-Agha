@@ -2,149 +2,74 @@
 
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
-import { ArrowLeft, Heart } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useMenu } from "@/core/presentation/hook/useMenu";
+import type { Menu } from "@/core/domain/entity/menu";
 
-const menus = {
+const categoryMeta: Record<
+  string,
+  { title: string; arabic: string; intro: string }
+> = {
   appetizers: {
     title: "Appetizers",
     arabic: "المقبلات",
     intro: "Small plates made to begin the evening.",
-    dishes: [
-      {
-        name: "Hummus Beiruti",
-        price: "$8.50",
-        image:
-          "https://images.unsplash.com/photo-1577805947697-89e18249d767?auto=format&fit=crop&w=1000&q=85",
-        description: "Creamy chickpeas, tahini, lemon, and a bright finish.",
-      },
-      {
-        name: "Crispy Sambousek",
-        price: "$9.75",
-        image:
-          "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=1000&q=85",
-        description:
-          "Golden pastry filled with herbs, cheese, and warm spices.",
-      },
-    ],
   },
   "main-courses": {
     title: "Main Courses",
     arabic: "الأطباق الرئيسية",
     intro: "A generous table of dishes worth lingering over.",
-    dishes: [
-      {
-        name: "Charcoal Chicken",
-        price: "$18.50",
-        image:
-          "https://images.unsplash.com/photo-1532550907401-a500c9a57435?auto=format&fit=crop&w=1000&q=85",
-        description:
-          "Tender grilled chicken with herbs, lemon, and roasted vegetables.",
-      },
-      {
-        name: "Lamb Ouzi",
-        price: "$22.00",
-        image:
-          "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1000&q=85",
-        description:
-          "Slow-cooked lamb over fragrant rice with toasted almonds.",
-      },
-    ],
   },
   salads: {
     title: "Salads",
     arabic: "السلطات",
     intro: "Fresh greens, vivid herbs, and generous textures.",
-    dishes: [
-      {
-        name: "Fattoush",
-        price: "$10.50",
-        image:
-          "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1000&q=85",
-        description:
-          "Crisp greens, herbs, toasted bread, and pomegranate dressing.",
-      },
-      {
-        name: "Garden Tabbouleh",
-        price: "$9.50",
-        image:
-          "https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=1000&q=85",
-        description: "Parsley, tomato, mint, and bulgur brightened with lemon.",
-      },
-    ],
   },
   desserts: {
     title: "Desserts",
     arabic: "الحلويات",
     intro: "A sweet close to a table set in history.",
-    dishes: [
-      {
-        name: "Baklava",
-        price: "$7.50",
-        image:
-          "https://images.unsplash.com/photo-1579888944880-d98341245702?auto=format&fit=crop&w=1000&q=85",
-        description: "Layers of pastry, pistachio, and honey syrup.",
-      },
-      {
-        name: "Rice Pudding",
-        price: "$6.50",
-        image:
-          "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=1000&q=85",
-        description: "Silky rice pudding scented with orange blossom.",
-      },
-    ],
   },
   drinks: {
     title: "Drinks",
     arabic: "المشروبات",
     intro: "Cool pours and warm infusions for every kind of evening.",
-    dishes: [
-      {
-        name: "Mint Lemonade",
-        price: "$6.00",
-        image:
-          "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=1000&q=85",
-        description: "Fresh lemon, garden mint, and a little sweetness.",
-      },
-      {
-        name: "Cardamom Tea",
-        price: "$4.50",
-        image:
-          "https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=1000&q=85",
-        description: "Black tea steeped with cardamom and served warm.",
-      },
-    ],
   },
-} as const;
-
-type MenuSlug = keyof typeof menus;
-type Dish = (typeof menus)[MenuSlug]["dishes"][number];
+};
 
 export default function MenuDetailPage() {
   const { category: slug } = useParams<{ category: string }>();
-  const menu = menus[slug as MenuSlug];
+  const apiKey = process.env.NEXT_PUBLIC_API_KEY!;
+  const { data, loading, error, fetchItems } = useMenu(apiKey);
+
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [liked, setLiked] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  if (!menu) notFound();
+  const dishes: Menu[] = data?.items ?? [];
+  const meta = categoryMeta[slug];
 
-  const selected: Dish = menu.dishes[selectedIndex] ?? menu.dishes[0];
+  useEffect(() => {
+    if (!slug) return;
+    fetchItems({ filter: { category: slug }, limit: 100 });
+  }, [slug, fetchItems]);
+
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [slug]);
+
+  if (!meta) notFound();
+
+  const selected: Menu = dishes[selectedIndex] ?? dishes[0];
 
   const handleSelect = (index: number) => {
     if (index === selectedIndex) return;
     setIsTransitioning(true);
     setTimeout(() => {
       setSelectedIndex(index);
-      setLiked(false);
       setIsTransitioning(false);
     }, 180);
   };
-
-  useEffect(() => {
-    setSelectedIndex(0);
-    setLiked(false);
-  }, [slug]);
 
   return (
     <main className="menu-detail-page">
@@ -156,9 +81,9 @@ export default function MenuDetailPage() {
           </Link>
 
           <div className="header-center">
-            <span className="detail-wordmark">BEIT AL AGHA</span>
+            <span className="detail-wordmark">بيت الآغا</span>
             <span className="header-divider" aria-hidden />
-            <span className="detail-arabic">{menu.arabic}</span>
+            <span className="detail-arabic">{meta.arabic}</span>
           </div>
 
           <div className="header-spacer" aria-hidden />
@@ -170,65 +95,82 @@ export default function MenuDetailPage() {
             <span className="ornament-dot">✦</span>
             <span />
           </div>
-          <p className="eyebrow">The collection</p>
-          <h1>{menu.title}</h1>
-          <p className="intro-text">{menu.intro}</p>
+          <p className="eyebrow">الصنف</p>
+          <h1>{meta.title}</h1>
+          <p className="intro-text">{meta.intro}</p>
         </div>
 
-        <div className="detail-layout">
-          <aside className="dish-list">
-            <h2>
-              <span className="list-rule" aria-hidden />
-              Choose a dish
-            </h2>
+        {loading && (
+          <p style={{ textAlign: "center", padding: "2rem" }}>Loading...</p>
+        )}
+        {error && (
+          <p style={{ textAlign: "center", padding: "2rem", color: "red" }}>
+            {error}
+          </p>
+        )}
 
-            <div className="dish-options">
-              {menu.dishes.map((dish, index) => (
-                <button
-                  key={dish.name}
-                  type="button"
-                  className={
-                    index === selectedIndex
-                      ? "dish-option dish-option-active"
-                      : "dish-option"
-                  }
-                  onClick={() => handleSelect(index)}
-                  aria-pressed={index === selectedIndex}>
-                  <div className="dish-option-thumb">
-                    <img src={dish.image} alt="" />
-                  </div>
-                  <span className="dish-option-text">
-                    <strong>{dish.name}</strong>
-                    <small>{dish.price}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </aside>
+        {!loading && !error && dishes.length === 0 && (
+          <p style={{ textAlign: "center", padding: "2rem" }}>
+            No items found.
+          </p>
+        )}
 
-          <article
-            className={`dish-detail ${isTransitioning ? "is-fading" : ""}`}>
-            <div className="dish-hero-wrap">
-              <img
-                className="dish-hero"
-                src={selected.image}
-                alt={selected.name}
-              />
-              <div className="dish-hero-fade" aria-hidden />
-            </div>
+        {!loading && !error && dishes.length > 0 && (
+          <div className="detail-layout">
+            <aside className="dish-list">
+              <h2>
+                اختر طبق
+                <span className="list-rule" aria-hidden />
+              </h2>
 
-            <div className="dish-body">
-              <div className="dish-copy">
-                <p className="eyebrow">From our kitchen</p>
-                <h2>{selected.name}</h2>
-                <p className="dish-desc">{selected.description}</p>
+              <div className="dish-options">
+                {dishes.map((dish, index) => (
+                  <button
+                    key={dish.title}
+                    type="button"
+                    className={
+                      index === selectedIndex
+                        ? "dish-option dish-option-active"
+                        : "dish-option"
+                    }
+                    onClick={() => handleSelect(index)}
+                    aria-pressed={index === selectedIndex}>
+                    <div className="dish-option-thumb">
+                      <img src={dish.image} alt="" />
+                    </div>
+                    <span className="dish-option-text">
+                      <strong>{dish.title}</strong>
+                      <small>${dish.price}</small>
+                    </span>
+                  </button>
+                ))}
               </div>
-              <div className="dish-meta">
-                <strong className="dish-price">{selected.price}</strong>
+            </aside>
+
+            <article
+              className={`dish-detail ${isTransitioning ? "is-fading" : ""}`}>
+              <div className="dish-hero-wrap">
+                <img
+                  className="dish-hero"
+                  src={selected.image}
+                  alt={selected.title}
+                />
+                <div className="dish-hero-fade" aria-hidden />
               </div>
-            </div>
-          </article>
-        </div>
+
+              <div className="dish-body">
+                <div className="dish-copy">
+                  <p className="eyebrow">من مطبخنا</p>
+                  <h2>{selected.title}</h2>
+                  <p className="dish-desc">{selected.description}</p>
+                </div>
+                <div className="dish-meta">
+                  <strong className="dish-price">${selected.price}</strong>
+                </div>
+              </div>
+            </article>
+          </div>
+        )}
       </section>
     </main>
   );
